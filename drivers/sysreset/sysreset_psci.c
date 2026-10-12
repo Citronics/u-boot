@@ -27,7 +27,12 @@ static int psci_sysreset_request(struct udevice *dev, enum sysreset_t type)
 		return -EPROTONOSUPPORT;
 	}
 
-	return -EINPROGRESS;
+	/*
+	 * SYSTEM_RESET and SYSTEM_OFF do not return on success. Some firmware
+	 * returns anyway without resetting, give the other sysreset drivers a
+	 * chance in that case.
+	 */
+	return -EIO;
 }
 
 static struct sysreset_ops psci_sysreset_ops = {
