@@ -317,7 +317,9 @@ static const struct qusb2_phy_cfg qusb2_v2_phy_cfg = {
  * @base: iomapped memory space for qubs2 phy
  *
  * @cfg_ahb_clk: AHB2PHY interface clock
+ * @ref_clk: optional differential reference clock
  * @phy_rst: phy reset control
+ * @tcsr: optional TCSR_PHY_CLK_SCHEME register
  *
  * @cfg: phy config data
  * @has_se_clk_scheme: indicate if PHY has single-ended ref clock scheme
@@ -327,7 +329,10 @@ struct qusb2_phy {
 	void __iomem *base;
 
 	struct clk cfg_ahb_clk;
+	struct clk ref_clk;
+	bool has_ref_clk;
 	struct reset_ctl phy_rst;
+	void __iomem *tcsr;
 
 	const struct qusb2_phy_cfg *cfg;
 	bool has_se_clk_scheme;
@@ -401,6 +406,19 @@ static int qusb2phy_power_on(struct phy *phy)
 	 */
 	qphy->has_se_clk_scheme = cfg->se_clk_scheme_default;
 
+	/*
+	 * Read TCSR_PHY_CLK_SCHEME to check if the single ended clock scheme
+	 * is selected, otherwise the differential ref_clk is used.
+	 */
+	if (qphy->tcsr)
+		qphy->has_se_clk_scheme = readl(qphy->tcsr) & PHY_CLK_SCHEME_SEL;
+
+	if (!qphy->has_se_clk_scheme && qphy->has_ref_clk) {
+		ret = clk_enable(&qphy->ref_clk);
+		if (ret)
+			return ret;
+	}
+
 	if (cfg->has_pll_test) {
 		if (!qphy->has_se_clk_scheme)
 			val &= ~CLK_REF_SEL;
@@ -436,6 +454,8 @@ static int qusb2phy_power_off(struct phy *phy)
 
 	reset_assert(&qphy->phy_rst);
 
+	if (!qphy->has_se_clk_scheme && qphy->has_ref_clk)
+		clk_disable(&qphy->ref_clk);
 	clk_disable(&qphy->cfg_ahb_clk);
 
 	return 0;
@@ -445,9 +465,12 @@ static int qusb2phy_clk_init(struct udevice *dev, struct qusb2_phy *qphy)
 {
 	int ret;
 
-	/* We ignore the ref clock as we currently lack a driver for rpmcc/rpmhcc where
-	 * it usually comes from - we assume it's always on.
+	/*
+	 * The ref clock is optional: it usually comes from rpmcc/rpmhcc which
+	 * may not have a driver, in which case it is assumed to be always on.
 	 */
+	qphy->has_ref_clk = !clk_get_by_name(dev, "ref", &qphy->ref_clk);
+
 	ret = clk_get_by_name(dev, "cfg_ahb", &qphy->cfg_ahb_clk);
 	if (ret == -ENOSYS || ret == -ENOENT)
 		return 0;
@@ -464,6 +487,7 @@ static int qusb2phy_clk_init(struct udevice *dev, struct qusb2_phy *qphy)
 static int qusb2phy_probe(struct udevice *dev)
 {
 	struct qusb2_phy *qphy = dev_get_priv(dev);
+	struct ofnode_phandle_args args;
 	int ret;
 
 	qphy->base = (void __iomem *)dev_read_addr(dev);
@@ -482,6 +506,15 @@ static int qusb2phy_probe(struct udevice *dev)
 		return ret;
 	}
 
+	ret = dev_read_phandle_with_args(dev, "qcom,tcsr-syscon", NULL, 0, 0,
+					 &args);
+	if (!ret) {
+		fdt_addr_t tcsr = ofnode_get_addr(args.node);
+
+		if (tcsr != FDT_ADDR_T_NONE)
+			qphy->tcsr = (void __iomem *)tcsr;
+	}
+
 	qphy->cfg = (const struct qusb2_phy_cfg *)dev_get_driver_data(dev);
 	if (!qphy->cfg) {
 		printf("%s: Couldn't get driver data\n", __func__);
@@ -498,6 +531,8 @@ static struct phy_ops qusb2phy_ops = {
 };
 
 static const struct udevice_id qusb2phy_ids[] = {
+	{ .compatible = "qcom,msm8953-qusb2-phy",
+	  .data = (ulong)&msm8996_phy_cfg },
 	{ .compatible = "qcom,msm8996-qusb2-phy",
 	  .data = (ulong)&msm8996_phy_cfg },
 	{ .compatible = "qcom,qusb2-phy" },
