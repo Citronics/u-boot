@@ -9,20 +9,51 @@
 
 #include <clk-uclass.h>
 #include <dm.h>
+#include <asm/global_data.h>
+#include <dm/lists.h>
+
+DECLARE_GLOBAL_DATA_PTR;
 
 /* NOP parent nodes to stub clocks */
 static const struct udevice_id nop_parent_ids[] = {
 	{ .compatible = "qcom,rpm-proc" },
 	{ .compatible = "qcom,glink-rpm" },
 	{ .compatible = "qcom,glink-smd-rpm" },
+	{ .compatible = "qcom,smd-rpm" },
 	{ }
 };
+
+static int nop_parent_bind(struct udevice *dev)
+{
+	bool pre_reloc_only = !(gd->flags & GD_FLG_RELOC);
+	ofnode edge, node;
+	int ret;
+
+	ret = dm_scan_fdt_dev(dev);
+	if (ret)
+		return ret;
+
+	/* The SMD edge of an RPM has no compatible, bind its children directly */
+	edge = dev_read_subnode(dev, "smd-edge");
+	if (!ofnode_valid(edge))
+		return 0;
+
+	ofnode_for_each_subnode(node, edge) {
+		if (!ofnode_is_enabled(node))
+			continue;
+		ret = lists_bind_fdt(dev, node, NULL, NULL, pre_reloc_only);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
 
 U_BOOT_DRIVER(nop_parent) = {
 	.name = "nop_parent",
 	.id = UCLASS_NOP,
 	.of_match = nop_parent_ids,
-	.bind = dm_scan_fdt_dev,
+	.bind = nop_parent_bind,
 	.flags = DM_FLAG_DEFAULT_PD_CTRL_OFF,
 };
 
