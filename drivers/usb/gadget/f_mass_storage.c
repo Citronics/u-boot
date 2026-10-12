@@ -673,6 +673,12 @@ static int sleep_thread(struct fsg_common *common)
 			if (ctrlc())
 				return -EPIPE;
 
+			/* Any key ends it too, phones have no Ctrl+C */
+			if (IS_ENABLED(CONFIG_CMD_UMS_ABORT_KEYED) && tstc()) {
+				getchar();
+				return -EPIPE;
+			}
+
 			/* Check cable connection */
 			if (!g_dnl_board_usb_cable_connected())
 				return -EIO;
