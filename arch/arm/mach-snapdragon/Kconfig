@@ -24,7 +24,7 @@ config SYS_MALLOC_LEN
 	default 0x800000
 
 config LNX_KRNL_IMG_TEXT_OFFSET_BASE
-	default 0x80000000
+	default TEXT_BASE
 
 config SPL_SHARES_INIT_SP_ADDR
 	# override the default from common/spl/Kconfig
