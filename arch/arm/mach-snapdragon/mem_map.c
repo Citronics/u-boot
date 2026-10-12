@@ -180,6 +180,27 @@ static void configure_reserved_memory(void)
 	}
 }
 
+/*
+ * SoCs where the memory map handed over by the previous bootloader still
+ * covers no-map regions that trap on speculative access.
+ */
+static bool qcom_needs_carveout(void)
+{
+	static const char * const compats[] = {
+		"qcom,msm8953",
+		"qcom,qcs404",
+		"qcom,sdm450",
+		"qcom,sdm632",
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(compats); i++)
+		if (!fdt_node_check_compatible(gd->fdt_blob, 0, compats[i]))
+			return true;
+
+	return false;
+}
+
 /* This function open-codes setup_all_pgtables() so that we can
  * insert additional mappings *before* turning on the MMU.
  */
@@ -215,8 +236,7 @@ void enable_caches(void)
 	 * On some boards speculative access may trigger a NOC or XPU violation so explicitly mark
 	 * reserved regions as inacessible (PTE_TYPE_FAULT)
 	 */
-	if (qcom_memmap_source == QCOM_MEMMAP_SOURCE_SMEM ||
-	    fdt_node_check_compatible(gd->fdt_blob, 0, "qcom,qcs404") == 0) {
+	if (qcom_memmap_source == QCOM_MEMMAP_SOURCE_SMEM || qcom_needs_carveout()) {
 		carveout_start = get_timer(0);
 		/* Takes ~20-50ms on SDM845 */
 		configure_reserved_memory();
