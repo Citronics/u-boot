@@ -22,3 +22,12 @@ QUALCOMM DRAGONWING QCS9100
 M:	Varadarajan Narayanan <quic_varada@quicinc.com>
 S:	Maintained
 N:	qcs9100
+
+FAIRPHONE 3 / 3+
+M:	Marc Lainez <marc.lainez@gmail.com>
+S:	Maintained
+F:	arch/arm/dts/sdm632-fairphone-fp3-u-boot.dtsi
+F:	board/qualcomm/fairphone-fp3.config
+F:	board/qualcomm/fairphone-fp3.env
+F:	doc/board/qualcomm/fairphone-fp3.rst
+N:	msm8953
