@@ -1001,6 +1001,17 @@ config VIDEO_DW_MIPI_DSI
 	  rather requires a SoC-specific glue driver to call it), it
 	  can not be enabled from the configuration menu.
 
+config VIDEO_QCOM_MDP5_SPLASH
+	bool "Qualcomm MDP5 boot splash framebuffer"
+	depends on ARCH_SNAPDRAGON
+	imply VIDEO_DAMAGE
+	help
+	  Use the framebuffer that the previous bootloader left on screen on
+	  Qualcomm SoCs with an MDP5 display controller, such as MSM8953.
+	  The buffer is found from the display controller registers, packed
+	  24 bpp buffers are converted to XRGB8888 and command mode panels are
+	  refreshed after each update.
+
 config VIDEO_SIMPLE
 	bool "Simple display driver for preconfigured display"
 	imply VIDEO_DAMAGE
