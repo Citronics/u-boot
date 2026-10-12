@@ -78,6 +78,8 @@ struct qcom_reset_map {
 
 struct qcom_power_map {
 	unsigned int reg;
+	/* Older GDSCs report their state in GDSCR rather than in CFG_GDSCR */
+	bool no_cfg_gdscr;
 };
 
 struct clk;

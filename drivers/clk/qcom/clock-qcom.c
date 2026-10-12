@@ -527,7 +527,11 @@ static int qcom_power_set(struct power_domain *pwr, bool on)
 
 	writel(value, base + map->reg);
 
-	if (on)
+	if (map->no_cfg_gdscr)
+		ret = readl_poll_timeout(base + map->reg, value,
+					 !!(value & GDSC_PWR_ON_MASK) == on,
+					 GDSC_STATUS_POLL_TIMEOUT_US);
+	else if (on)
 		ret = readl_poll_timeout(base + map->reg + CFG_GDSCR_OFFSET,
 					 value,
 					 (value & GDSC_POWER_UP_COMPLETE) ||
