@@ -32,6 +32,13 @@
 enum qcom_boot_source qcom_boot_source __section(".data") = 0;
 enum qcom_memmap_source qcom_memmap_source __section(".data") = 0;
 
+#if IS_ENABLED(CONFIG_SNAPDRAGON_ARMV7)
+/* Saved from r2 by save_boot_params() */
+extern ulong qcom_prev_bl_fdt;
+#undef get_prev_bl_fdt_addr
+#define get_prev_bl_fdt_addr()	((phys_addr_t)qcom_prev_bl_fdt)
+#endif
+
 #if CONFIG_IS_ENABLED(SYSRESET_PSCI)
 static void show_psci_version(void)
 {
@@ -97,7 +104,7 @@ int board_fdt_blob_setup(void **fdtp)
 	 */
 	if (!internal_valid && !external_valid)
 		panic("Internal FDT is invalid and no external FDT was provided! (fdt=%#llx)\n",
-		      (phys_addr_t)external_fdt);
+		      (u64)(uintptr_t)external_fdt);
 
 	/* Prefer memory information from internal DT if it's present */
 	if (internal_valid)
@@ -123,7 +130,7 @@ int board_fdt_blob_setup(void **fdtp)
 		qcom_boot_source = QCOM_BOOT_SOURCE_XBL;
 
 	debug("ram_base = %#011lx, ram_size = %#011llx\n",
-	      gd->ram_base, gd->ram_size);
+	      gd->ram_base, (u64)gd->ram_size);
 
 	if (internal_valid) {
 		debug("Using built in FDT\n");

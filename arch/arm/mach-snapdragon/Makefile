@@ -3,7 +3,8 @@
 # (C) Copyright 2015 Mateusz Kulikowski <mateusz.kulikowski@gmail.com>
 
 obj-y += dram.o
-obj-y += mem_map.o
+obj-$(CONFIG_ARM64) += mem_map.o
+obj-$(CONFIG_SNAPDRAGON_ARMV7) += armv7.o
 
 ifeq ($(CONFIG_SPL_BUILD),y)
 obj-y += board_spl.o
