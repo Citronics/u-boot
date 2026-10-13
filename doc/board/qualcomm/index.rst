@@ -10,6 +10,7 @@ Qualcomm
    debugging
    dragonboard410c
    dragonwing
+   fairphone-fp2
    fairphone-fp3
    rb3gen2
    rubikpi3

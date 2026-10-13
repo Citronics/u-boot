@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/arm/qcom,ids.h>
+
+/ {
+	/*
+	 * Match the entry of the stock LK, as lk2nd does, so it selects this
+	 * DTB when U-Boot is packed into an Android boot image.
+	 */
+	qcom,msm-id = <QCOM_ID_APQ8074PRO_AA 0x10000>,
+		      <QCOM_ID_APQ8074PRO_AB 0x10000>,
+		      <QCOM_ID_MSM8274PRO_AA 0x10000>,
+		      <QCOM_ID_MSM8274PRO_AB 0x10000>,
+		      <QCOM_ID_MSM8674PRO_AA 0x10000>,
+		      <QCOM_ID_MSM8674PRO_AB 0x10000>,
+		      <QCOM_ID_MSM8974PRO_AA 0x10000>,
+		      <QCOM_ID_MSM8974PRO_AB 0x10000>;
+	qcom,board-id = <QCOM_BOARD_ID_MTP 0>;
+
+	/*
+	 * The environment, two copies, fills the end of the boot partition,
+	 * after the U-Boot image: flashing U-Boot leaves it, erasing boot clears it.
+	 */
+	config {
+		u-boot,mmc-env-partition = "boot";
+	};
+};
+
+/* No camera key on production phones: the line reads as pressed */
+&{/gpio-keys/key-camera-snapshot} {
+	status = "disabled";
+};
+
+/* Take over the display that LK leaves running */
+&mdss {
+	status = "okay";
+};
+
+/* Console on the debug UART pads, from before relocation */
+&blsp1_uart2 {
+	bootph-all;
+};
