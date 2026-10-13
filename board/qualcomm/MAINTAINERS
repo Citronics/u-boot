@@ -23,6 +23,17 @@ M:	Varadarajan Narayanan <quic_varada@quicinc.com>
 S:	Maintained
 N:	qcs9100
 
+FAIRPHONE 2
+M:	Marc Lainez <marc.lainez@gmail.com>
+S:	Maintained
+F:	arch/arm/dts/qcom-msm8974pro-fairphone-fp2-u-boot.dtsi
+F:	board/qualcomm/debug-msm8974.config
+F:	board/qualcomm/fairphone-fp2.env
+F:	board/qualcomm/fairphone-fp2/
+F:	configs/fairphone-fp2_defconfig
+F:	doc/board/qualcomm/fairphone-fp2.rst
+N:	msm8974
+
 FAIRPHONE 3 / 3+
 M:	Marc Lainez <marc.lainez@gmail.com>
 S:	Maintained
