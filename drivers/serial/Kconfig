@@ -526,6 +526,16 @@ config DEBUG_UART_GOLDFISH
 	  start up driver model. The driver will be available until the real
 	  driver model serial is running.
 
+# Last, so that it never becomes the default of boards that leave the choice
+config DEBUG_UART_RAMLOG
+	bool "Debug output to a RAM buffer"
+	help
+	  Write the debug UART output to a buffer in RAM at DEBUG_UART_BASE
+	  instead of a UART. The buffer survives a warm reset, so the previous
+	  bootloader can read it back on boards without an accessible UART.
+	  The first word holds a magic value and the second the number of
+	  characters written.
+
 endchoice
 
 config DEBUG_UART_BASE

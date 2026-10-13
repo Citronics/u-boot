@@ -724,6 +724,10 @@ void putc(const char c)
 
 	console_record_putc(c);
 
+	/* the RAM log also keeps everything once the console is up */
+	if (IS_ENABLED(CONFIG_DEBUG_UART_RAMLOG) && (gd->flags & GD_FLG_SERIAL_READY))
+		printch(c);
+
 	/* sandbox can send characters to stdout before it has a console */
 	if (IS_ENABLED(CONFIG_SANDBOX) && !(gd->flags & GD_FLG_SERIAL_READY)) {
 		os_putc(c);
@@ -764,6 +768,9 @@ void puts(const char *s)
 		return;
 
 	console_record_puts(s);
+
+	if (IS_ENABLED(CONFIG_DEBUG_UART_RAMLOG) && (gd->flags & GD_FLG_SERIAL_READY))
+		printascii(s);
 
 	/* sandbox can send characters to stdout before it has a console */
 	if (IS_ENABLED(CONFIG_SANDBOX) && !(gd->flags & GD_FLG_SERIAL_READY)) {
