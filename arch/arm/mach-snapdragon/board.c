@@ -23,6 +23,7 @@
 #include <linux/sizes.h>
 #include <lmb.h>
 #include <malloc.h>
+#include <mmc.h>
 #include <soc/qcom/smem.h>
 #include <sort.h>
 #include <time.h>
@@ -245,24 +246,46 @@ static const char *get_cmdline(void)
 	return cmdline;
 }
 
+/* Like LK, fall back to the product serial number of the eMMC */
+static void qcom_set_serialno_from_mmc(void)
+{
+	struct mmc *mmc;
+	char serial[16];
+
+	if (!IS_ENABLED(CONFIG_MMC))
+		return;
+
+	mmc = find_mmc_device(0);
+	if (!mmc || mmc_init(mmc) || IS_SD(mmc))
+		return;
+
+	snprintf(serial, sizeof(serial), "%x",
+		 (mmc->cid[2] & 0xffff) << 16 | mmc->cid[3] >> 16);
+	env_set("serial#", serial);
+}
+
 void qcom_set_serialno(void)
 {
 	const char *cmdline;
-	char serial[32];
+	char serial[32] = "";
 
-	if (!qcom_socinfo_init())
+	/* serial# is write-once: an environment loaded from storage has it */
+	if (env_get("serial#"))
 		return;
 
-	cmdline = get_cmdline();
-
-	if (!cmdline) {
-		log_debug("Failed to get bootargs\n");
-		return;
+	if (qcom_socinfo_init()) {
+		cmdline = get_cmdline();
+		if (cmdline)
+			get_cmdline_option(cmdline, "androidboot.serialno=",
+					   serial, sizeof(serial));
+		else
+			log_debug("Failed to get bootargs\n");
 	}
 
-	get_cmdline_option(cmdline, "androidboot.serialno=", serial, sizeof(serial));
 	if (serial[0] != '\0')
 		env_set("serial#", serial);
+	else
+		qcom_set_serialno_from_mmc();
 }
 
 /* Sets up the "board", and "soc" environment variables as well as constructing the devicetree
