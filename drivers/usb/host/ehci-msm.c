@@ -61,7 +61,9 @@ static int ehci_usb_probe(struct udevice *dev)
 	hcor = (struct ehci_hcor *)((phys_addr_t)hccr +
 			HC_LENGTH(ehci_readl(&(hccr)->cr_capbase)));
 
-	ret = generic_setup_phy(dev, &p->phy, 0, PHY_MODE_USB_HOST, 0);
+	ret = generic_setup_phy(dev, &p->phy, 0,
+				plat->init_type == USB_INIT_DEVICE ?
+				PHY_MODE_USB_DEVICE : PHY_MODE_USB_HOST, 0);
 	if (ret)
 		return ret;
 
@@ -111,7 +113,7 @@ static int ehci_usb_of_to_plat(struct udevice *dev)
  */
 void ci_init_after_reset(struct ehci_ctrl *ctrl)
 {
-	struct msm_ehci_priv *p = ctrl->priv;
+	struct msm_ehci_priv *p = container_of(ctrl, struct msm_ehci_priv, ctrl);
 
 	generic_phy_reset(&p->phy);
 }
@@ -129,10 +131,31 @@ U_BOOT_DRIVER(ehci_msm) = {
 	.flags	= DM_FLAG_ALLOC_PRIV_DMA,
 };
 
+/*
+ * Some SoCs (e.g. MSM8974) have two HS PHYs and a TCSR register that selects
+ * the one connected to the controller.
+ */
+static void qcom_ci_hdrc_phy_select(struct udevice *dev)
+{
+	struct ofnode_phandle_args args;
+	fdt_addr_t base;
+
+	if (dev_read_phandle_with_args(dev, "phy-select", NULL, 2, 0, &args))
+		return;
+
+	base = ofnode_get_addr(args.node);
+	if (base == FDT_ADDR_T_NONE)
+		return;
+
+	writel(args.args[1], base + args.args[0]);
+}
+
 static int qcom_ci_hdrc_probe(struct udevice *dev)
 {
 	struct qcom_ci_hdrc_priv *p = dev_get_priv(dev);
 	int ret;
+
+	qcom_ci_hdrc_phy_select(dev);
 
 	ret = clk_get_bulk(dev, &p->clks);
 	if (ret && (ret != -ENOSYS && ret != -ENOENT)) {
