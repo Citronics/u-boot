@@ -35,6 +35,18 @@
 
 #define CORE_VENDOR_SPEC_POR_VAL 0xa9c
 
+/* Power control handshake of the SDCC with an MCI block */
+#define SDCC_MCI_PWRCTL_STATUS	0xdc
+#define SDCC_MCI_PWRCTL_MASK	0xe0
+#define SDCC_MCI_PWRCTL_CLEAR	0xe4
+#define SDCC_MCI_PWRCTL_CTL	0xe8
+#define CORE_PWRCTL_BUS_OFF	BIT(0)
+#define CORE_PWRCTL_BUS_ON	BIT(1)
+#define CORE_PWRCTL_IO_LOW	BIT(2)
+#define CORE_PWRCTL_IO_HIGH	BIT(3)
+#define CORE_PWRCTL_BUS_SUCCESS	BIT(0)
+#define CORE_PWRCTL_IO_SUCCESS	BIT(2)
+
 #define CORE_DLL_PDN		BIT(29)
 #define CORE_DLL_RST		BIT(30)
 
@@ -173,9 +185,68 @@ static int msm_sdhci_config_dll(struct sdhci_host *host, u32 clock, bool enable)
 	return 0;
 }
 
+/*
+ * Bus power and I/O voltage changes, requested through the SDHCI power
+ * control and software reset registers, wait for software to acknowledge
+ * them. Without that the controller stalls.
+ */
+static void msm_sdc_pwrctl_ack(struct msm_sdhc *prv, unsigned int timeout_us)
+{
+	u32 status, ctl = 0;
+
+	do {
+		status = readl(prv->base + SDCC_MCI_PWRCTL_STATUS);
+		if (status)
+			break;
+		udelay(1);
+	} while (timeout_us--);
+
+	if (!status)
+		return;
+
+	writel(status, prv->base + SDCC_MCI_PWRCTL_CLEAR);
+	if (status & (CORE_PWRCTL_BUS_ON | CORE_PWRCTL_BUS_OFF))
+		ctl |= CORE_PWRCTL_BUS_SUCCESS;
+	if (status & (CORE_PWRCTL_IO_HIGH | CORE_PWRCTL_IO_LOW))
+		ctl |= CORE_PWRCTL_IO_SUCCESS;
+	writel(ctl, prv->base + SDCC_MCI_PWRCTL_CTL);
+}
+
+static void msm_sdhci_write_b(struct sdhci_host *host, u8 val, int reg)
+{
+	struct msm_sdhc *prv = container_of(host, struct msm_sdhc, host);
+
+	writeb(val, host->ioaddr + reg);
+	if (reg == SDHCI_POWER_CONTROL ||
+	    (reg == SDHCI_SOFTWARE_RESET && (val & SDHCI_RESET_ALL)))
+		msm_sdc_pwrctl_ack(prv, 10000);
+}
+
+static void msm_sdhci_write_w(struct sdhci_host *host, u16 val, int reg)
+{
+	struct msm_sdhc *prv = container_of(host, struct msm_sdhc, host);
+	u16 old = 0;
+
+	if (reg == SDHCI_HOST_CONTROL2)
+		old = readw(host->ioaddr + reg);
+
+	writew(val, host->ioaddr + reg);
+
+	/* Switching the I/O voltage is also a power control request */
+	if (reg == SDHCI_HOST_CONTROL2 && ((old ^ val) & SDHCI_CTRL_VDD_180))
+		msm_sdc_pwrctl_ack(prv, 10000);
+}
+
 struct sdhci_ops msm_sdhci_ops = {
 	.config_dll = &msm_sdhci_config_dll,
 	.set_control_reg = &sdhci_set_control_reg,
+};
+
+struct sdhci_ops msm_sdhci_mci_ops = {
+	.config_dll = &msm_sdhci_config_dll,
+	.set_control_reg = &sdhci_set_control_reg,
+	.write_b = &msm_sdhci_write_b,
+	.write_w = &msm_sdhci_write_w,
 };
 
 static int msm_sdc_probe(struct udevice *dev)
@@ -223,6 +294,10 @@ static int msm_sdc_probe(struct udevice *dev)
 		ret = msm_sdc_mci_init(prv);
 		if (ret)
 			return ret;
+
+		/* Report all requests and drop any the previous bootloader left */
+		writel(0xf, prv->base + SDCC_MCI_PWRCTL_MASK);
+		msm_sdc_pwrctl_ack(prv, 0);
 	}
 
 	if (!var_info->mci_removed)
@@ -260,7 +335,7 @@ static int msm_sdc_probe(struct udevice *dev)
 
 	host->mmc = &plat->mmc;
 	host->mmc->dev = dev;
-	host->ops = &msm_sdhci_ops;
+	host->ops = var_info->mci_removed ? &msm_sdhci_ops : &msm_sdhci_mci_ops;
 	ret = sdhci_setup_cfg(&plat->cfg, host, 0, 0);
 	if (ret)
 		return ret;
