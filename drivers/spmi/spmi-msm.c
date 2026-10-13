@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <fdtdec.h>
 #include <asm/io.h>
+#include <linux/iopoll.h>
 #include <dm/device_compat.h>
 #include <spmi/spmi.h>
 
@@ -162,10 +163,10 @@ static int msm_spmi_write(struct udevice *dev, int usid, int pid, int off,
 	writel(reg, priv->spmi_chnls + ch_offset + SPMI_REG_CMD0);
 
 	/* Wait till CMD DONE status */
-	reg = 0;
-	while (!reg) {
-		reg = readl(priv->spmi_chnls + ch_offset +
-			    SPMI_REG_STATUS);
+	if (readl_poll_sleep_timeout(priv->spmi_chnls + ch_offset + SPMI_REG_STATUS,
+				     reg, reg, 1, 10000)) {
+		printf("SPMI write timeout [%d:%d:%#x]\n", usid, pid, off);
+		return -ETIMEDOUT;
 	}
 
 	if (reg ^ SPMI_STATUS_DONE) {
@@ -232,9 +233,10 @@ static int msm_spmi_read(struct udevice *dev, int usid, int pid, int off)
 	writel(reg, priv->spmi_obs + ch_offset + SPMI_REG_CMD0);
 
 	/* Wait till CMD DONE status */
-	reg = 0;
-	while (!reg) {
-		reg = readl(priv->spmi_obs + ch_offset + SPMI_REG_STATUS);
+	if (readl_poll_sleep_timeout(priv->spmi_obs + ch_offset + SPMI_REG_STATUS,
+				     reg, reg, 1, 10000)) {
+		printf("SPMI read timeout [%d:%d:%#x]\n", usid, pid, off);
+		return -ETIMEDOUT;
 	}
 
 	if (reg ^ SPMI_STATUS_DONE) {
