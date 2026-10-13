@@ -53,7 +53,7 @@ static void qcom_configure_dram(void)
 		gd->dram[i].start = prevbl_ddr_banks[i].start;
 		gd->dram[i].size = prevbl_ddr_banks[i].size;
 		debug("Bank[%d]: start = %#011llx, size = %#011llx\n",
-		      i, gd->dram[i].start, gd->dram[i].size);
+		      i, (u64)gd->dram[i].start, (u64)gd->dram[i].size);
 		if (!prevbl_ddr_banks[i].size)
 			break;
 	}

@@ -817,7 +817,7 @@ qcom_smem_partition_header(struct qcom_smem *smem,
 	u32 size;
 
 	phys_addr = smem->regions[0].aux_base + le32_to_cpu(entry->offset);
-	header = (void *)phys_addr; // devm_ioremap_wc()
+	header = (void *)(uintptr_t)phys_addr; // devm_ioremap_wc()
 
 	if (!header)
 		return NULL;
@@ -968,13 +968,15 @@ static int qcom_smem_map_toc(struct qcom_smem *smem, struct smem_region *region)
 	region->virt_base = (void *)region->aux_base;
 	ptable_start = region->aux_base + region->size - SZ_4K;
 	/* map last 4k for toc */
-	smem->ptable = (struct smem_ptable *)(u64)ptable_start;
+	smem->ptable = (struct smem_ptable *)(uintptr_t)ptable_start;
 
 	if (!region->virt_base || !smem->ptable)
 		return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_ARM64)
 	if (dcache_status())
 		mmu_map_region(region->aux_base, region->size, false);
+#endif
 
 	return 0;
 }
@@ -986,7 +988,7 @@ static int qcom_smem_map_global(struct qcom_smem *smem, u32 size)
 	phys_addr = smem->regions[0].aux_base;
 
 	smem->regions[0].size = size;
-	smem->regions[0].virt_base = (void *)phys_addr;
+	smem->regions[0].virt_base = (void *)(uintptr_t)phys_addr;
 
 	if (!smem->regions[0].virt_base)
 		return -ENOMEM;
@@ -1029,8 +1031,10 @@ int qcom_smem_init(void)
 	int ret;
 	int i;
 
+#if IS_ENABLED(CONFIG_ARM64)
 	if (dcache_status() && smem)
 		mmu_map_region(smem->regions[0].aux_base, smem->regions[0].size, false);
+#endif
 
 	if (smem)
 		return 0;

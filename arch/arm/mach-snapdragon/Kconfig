@@ -11,6 +11,16 @@ config SYS_VENDOR
 	  Based on this option board/<CONFIG_SYS_VENDOR>/<CONFIG_SYS_BOARD>
 	  will be used as the custom board directory.
 
+config SNAPDRAGON_ARMV7
+	bool "32-bit ARMv7 Snapdragon SoC"
+	select CPU_V7A
+	select SYS_ARCH_TIMER
+	select ENABLE_ARM_SOC_BOOT0_HOOK
+	select SYSRESET_QCOM_PSHOLD
+	help
+	  Build U-Boot for the 32-bit Krait based SoCs (e.g. MSM8974), chainloaded
+	  by the Android bootloader (LK) as a zImage with an appended device tree.
+
 config SYS_MALLOC_F_LEN
 	default 0x2000
 
