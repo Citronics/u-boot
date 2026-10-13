@@ -688,6 +688,7 @@ config MMC_SDHCI_F_SDH30
 config MMC_SDHCI_MSM
 	bool "Qualcomm SDHCI controller"
 	depends on MMC_SDHCI && ARCH_SNAPDRAGON
+	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  Enables support for SDHCI 2.0 controller present on some Qualcomm
 	  Snapdragon devices. This device is compatible with eMMC v4.5 and
