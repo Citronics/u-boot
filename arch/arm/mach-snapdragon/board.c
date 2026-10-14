@@ -455,6 +455,22 @@ void __weak qcom_late_init(void)
 
 #define lmb_alloc(size, addr) lmb_alloc_mem(LMB_MEM_ALLOC_ANY, SZ_2M, addr, size, LMB_NONE)
 
+/*
+ * Keep a load address the environment sets, e.g. because a 32-bit kernel
+ * finds the start of RAM from where it is loaded, otherwise allocate one.
+ */
+static int qcom_set_load_addr(const char *name, phys_size_t size, phys_addr_t *addr)
+{
+	*addr = env_get_hex(name, 0);
+	if (*addr)
+		return 0;
+
+	if (lmb_alloc(size, addr))
+		return 1;
+
+	return env_set_hex(name, *addr);
+}
+
 /* Stolen from arch/arm/mach-apple/board.c */
 int board_late_init(void)
 {
@@ -463,11 +479,9 @@ int board_late_init(void)
 	struct fdt_header *fdt_blob = (struct fdt_header *)gd->fdt_blob;
 
 	/* We need to be fairly conservative here as we support boards with just 1G of TOTAL RAM */
-	status |= !lmb_alloc(SZ_128M, &addr) ?
-		env_set_hex("loadaddr", addr) : 1;
-	status |= env_set_hex("kernel_addr_r", addr);
-	status |= !lmb_alloc(SZ_128M, &addr) ?
-		env_set_hex("ramdisk_addr_r", addr) : 1;
+	status |= qcom_set_load_addr("kernel_addr_r", SZ_128M, &addr);
+	status |= env_set_hex("loadaddr", addr);
+	status |= qcom_set_load_addr("ramdisk_addr_r", SZ_128M, &addr);
 	status |= !lmb_alloc(KERNEL_COMP_SIZE, &addr) ?
 		env_set_hex("kernel_comp_addr_r", addr) : 1;
 	status |= env_set_hex("kernel_comp_size", KERNEL_COMP_SIZE);
@@ -488,8 +502,7 @@ int board_late_init(void)
 		status |= env_set_hex("loadaddr", addr);
 	}
 
-	fdt_status |= !lmb_alloc(SZ_2M, &addr) ?
-		env_set_hex("fdt_addr_r", addr) : 1;
+	fdt_status |= qcom_set_load_addr("fdt_addr_r", SZ_2M, &addr);
 
 	if (IS_ENABLED(CONFIG_OF_LIBFDT_OVERLAY)) {
 		status |= !lmb_alloc(SZ_1M, &addr) ?
