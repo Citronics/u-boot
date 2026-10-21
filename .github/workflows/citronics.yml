@@ -1,0 +1,44 @@
+name: citronics
+
+on:
+  push:
+    branches: [citronics]
+    tags: ['citronics-*']
+  pull_request:
+    branches: [citronics]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    # Pinned to the LTS the Citronics Ubuntu images target.
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu \
+            bison flex bc python3 python3-dev python3-setuptools \
+            python3-pyelftools swig libssl-dev libgnutls28-dev uuid-dev xxd
+
+      - name: Build
+        run: citronics/build.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: u-boot-images
+          path: build-citronics/u-boot-*.img
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/citronics-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" \
+            --notes "U-Boot for the Fairphone 2 and Fairphone 3, built from $GITHUB_SHA." \
+            build-citronics/u-boot-fp2.img build-citronics/u-boot-fp3.img
