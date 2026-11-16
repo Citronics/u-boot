@@ -5,6 +5,9 @@
 obj-y += dram.o
 obj-$(CONFIG_ARM64) += mem_map.o
 obj-$(CONFIG_SNAPDRAGON_ARMV7) += armv7.o
+ifeq ($(CONFIG_SYS_DCACHE_OFF),)
+obj-$(CONFIG_SNAPDRAGON_ARMV7) += armv7-mmu.o
+endif
 
 ifeq ($(CONFIG_SPL_BUILD),y)
 obj-y += board_spl.o
