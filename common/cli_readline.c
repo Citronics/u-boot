@@ -474,8 +474,11 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 		ichar = cli_ch_process(cch, 0);
 
 		if (!ichar) {
-			if (bootretry_tstc_timeout())
-				return -2;	/* timed out */
+			/*
+			 * The caller's timeout comes first: with the boot retry
+			 * disabled, bootretry_tstc_timeout() waits for a key
+			 * without any timeout.
+			 */
 			if (first && timeout) {
 				u64 etime = endtick(timeout);
 
@@ -486,6 +489,8 @@ static int cread_line(const char *const prompt, char *buf, unsigned int *len,
 				}
 				first = 0;
 			}
+			if (bootretry_tstc_timeout())
+				return -2;	/* timed out */
 
 			ichar = getcmd_getch();
 			ichar = cli_ch_process(cch, ichar);
