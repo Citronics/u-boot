@@ -565,7 +565,8 @@ int bootm_find_images(ulong img_addr, const char *conf_ramdisk,
 
 		/* check if FDT overlaps OS image */
 		if (check_overlap("FDT", map_to_sysmem(images.ft_addr),
-				  images.ft_len, start, size))
+				  map_to_sysmem(images.ft_addr) + images.ft_len,
+				  start, size))
 			return 1;
 
 		if (IS_ENABLED(CONFIG_CMD_FDT))
