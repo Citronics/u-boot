@@ -27,6 +27,11 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
+      - name: Fetch the upstream version tags
+        run: |
+          git fetch --no-tags --filter=blob:none https://github.com/u-boot/u-boot.git \
+            'refs/tags/v20*:refs/tags/v20*'
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
