@@ -207,6 +207,10 @@ static inline int menu_interactive_choice(struct menu *m, void **choice)
 			readret = cli_readline_into_buffer("Enter choice: ",
 							   cbuf, m->timeout);
 
+			/* An empty line chooses the default, as in syslinux */
+			if (readret >= 0 && !cbuf[0] && m->default_item)
+				return menu_default_choice(m, choice);
+
 			if (readret >= 0) {
 				choice_item = menu_item_by_key(m, cbuf);
 				if (!choice_item)
