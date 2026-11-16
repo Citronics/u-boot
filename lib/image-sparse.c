@@ -58,7 +58,9 @@ static lbaint_t write_sparse_chunk_raw(struct sparse_storage *info,
 	lbaint_t aligned_buf_blks = FASTBOOT_MAX_BLK_WRITE;
 	uint32_t *aligned_buf = NULL;
 
-	if (CONFIG_IS_ENABLED(SYS_DCACHE_OFF)) {
+	/* With the data cache on, DMA needs cache-line aligned buffers */
+	if (CONFIG_IS_ENABLED(SYS_DCACHE_OFF) ||
+	    IS_ALIGNED((uintptr_t)data, ARCH_DMA_MINALIGN)) {
 		write_blks = info->write(info, blk, n, data);
 		if (write_blks < n)
 			goto write_fail;
