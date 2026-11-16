@@ -29,6 +29,7 @@
 
 #include <splash.h>
 #include <asm/io.h>
+#include <asm/unaligned.h>
 
 #include "menu.h"
 #include "cli.h"
@@ -503,6 +504,38 @@ cleanup:
 }
 
 /**
+ * is_linux_kernel() - Check for a Linux kernel image booti, bootz or zboot boots
+ *
+ * Linux kernels built with the EFI stub are PE/COFF images as well. Booting
+ * them as EFI applications would drop the label's initrd, so they keep going
+ * through the Linux boot commands.
+ *
+ * @buf: Image
+ * @size: Size of the image in bytes
+ * Return: true if @buf holds a Linux kernel image
+ */
+static bool is_linux_kernel(const void *buf, ulong size)
+{
+	/* arm64 ("ARM\x64") and RISC-V ("RSC\x05") Image headers */
+	if (IS_ENABLED(CONFIG_CMD_BOOTI) && size >= 0x3c) {
+		u32 magic = get_unaligned_le32(buf + 0x38);
+
+		if (magic == 0x644d5241 || magic == 0x05435352)
+			return true;
+	}
+	/* 32-bit ARM zImage */
+	if (IS_ENABLED(CONFIG_CMD_BOOTZ) && size >= 0x28 &&
+	    get_unaligned_le32(buf + 0x24) == 0x016f2818)
+		return true;
+	/* x86 bzImage */
+	if (IS_ENABLED(CONFIG_CMD_ZBOOT) && size >= 0x206 &&
+	    !memcmp(buf + 0x202, "HdrS", 4))
+		return true;
+
+	return false;
+}
+
+/**
  * label_boot() - Boot according to the contents of a pxe_label
  *
  * If we can't boot for any reason, we return.  A successful boot never
@@ -805,6 +838,7 @@ int label_boot(struct pxe_context *ctx, struct pxe_label *label)
 
 	/* Run PE-COFF images as EFI applications */
 	if (IS_ENABLED(CONFIG_CMD_BOOTEFI) &&
+	    !is_linux_kernel(buf, kernel_size) &&
 	    efi_check_pe(buf, kernel_size, NULL) == EFI_SUCCESS) {
 		void *fdt = EFI_FDT_USE_INTERNAL;
 		efi_status_t efi_ret;
