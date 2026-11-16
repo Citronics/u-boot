@@ -22,7 +22,7 @@ struct __packed fastboot_header {
 	unsigned short seq;
 };
 
-#define PACKET_SIZE 1024
+#define PACKET_SIZE CONFIG_UDP_FUNCTION_FASTBOOT_PACKET_SIZE
 #define DATA_SIZE (PACKET_SIZE - sizeof(struct fastboot_header))
 
 /* Sequence number sent for every packet */
@@ -244,11 +244,14 @@ static void fastboot_handler(uchar *packet, unsigned int dport,
 			     unsigned int len)
 {
 	struct fastboot_header header;
-	char fastboot_data[DATA_SIZE] = {0};
+	static char fastboot_data[DATA_SIZE];
 	unsigned int fastboot_data_len = 0;
 
 	if (dport != fastboot_our_port)
 		return;
+
+	/* Commands are read from it as strings */
+	memset(fastboot_data, 0, sizeof(fastboot_data));
 
 	fastboot_remote_ip = sip;
 	fastboot_remote_port = sport;

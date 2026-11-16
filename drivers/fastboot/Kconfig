@@ -41,6 +41,18 @@ config UDP_FUNCTION_FASTBOOT_PORT
 	help
 	  The fastboot protocol requires a UDP port number.
 
+config UDP_FUNCTION_FASTBOOT_PACKET_SIZE
+	depends on UDP_FUNCTION_FASTBOOT
+	int "Largest fastboot packet over UDP"
+	default 1024
+	range 512 65535
+	help
+	  The largest packet U-Boot offers the host, which acknowledges every
+	  packet before sending the next: larger packets make downloads
+	  faster. Above the network MTU, packets arrive fragmented and need
+	  IP_DEFRAG, with NET_MAXDEFRAG at least this size plus the IP and
+	  UDP headers. The Android fastboot host offers up to 8192.
+
 config TCP_FUNCTION_FASTBOOT
 	depends on NET_LEGACY
 	select FASTBOOT
